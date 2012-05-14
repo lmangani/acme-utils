@@ -50,7 +50,7 @@ command makes the acme send the serve ip-ip encapsulated packets. We
 run a tcpdump process to decode these and write them to a file.
 Before using, you need to start the tcpdumpd server with
 
-  nohub tcpdumpd &
+    nohub tcpdumpd &
 
 There are also some basic settings in trace/env.sh
 
