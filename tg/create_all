@@ -1,0 +1,54 @@
+#!/bin/bash
+
+source ../functions.sh
+
+set -ue
+
+
+help() {
+    echo "USAGE: $base id access_ip access_vlan core_ip remote_ip remote_port strategy"
+}
+
+trap help EXIT
+id=$1
+access_ip=$2
+access_vlan=$3
+core_ip=$4
+remote_ip=$5
+remote_port=$6
+strategy="hunt"
+if [ $# -gt 6 ] ; then
+    strategy=$7
+fi
+trap - EXIT
+
+echo -n "Backup up..."
+../backup/backup
+echo "Done"
+
+echo -n "Creating realms..."
+./create $id $access_ip $access_vlan $core_ip
+echo "Done"
+
+echo -n "Creating session group[$strategy $6]..."
+./create_session_group $id DEF $strategy
+echo "Done"
+
+echo -n "Adding agent..."
+./create_session_agent $id $id-ACCESS $id-DEF $remote_ip $remote_port
+echo "Done"
+
+echo -n "Adding routes..."
+./add_route $id $remote_ip
+echo "Done"
+
+echo -n "Adding acls..."
+./add_acl $id ACCESS $access_ip $remote_ip
+./add_acl $id CORE $core_ip 1.1.1.68
+echo "Done"
+
+echo -n "Actvating..."
+../activate
+echo "Done"
+
+

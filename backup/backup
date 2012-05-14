@@ -1,0 +1,25 @@
+#!/bin/bash
+
+source /export/provisioning/acme/functions.sh
+
+set -ue
+
+current_ver=$(snmpget -Ovqtn -v2c -c $community $host SNMPv2-SMI::enterprises.9148.3.4.1.2.1.0)
+
+config_dir=$config_root/$host
+mkdir -p $config_dir
+
+config_tgt=$config_dir/$current_ver.gz
+
+create_tmp
+
+cmd=$(cat <<EOF
+$(cfg_cmd "#" "delete-backup current.gz")
+$(cfg_cmd "#" "backup-config current.gz")
+EOF
+)
+
+host=10.17.0.163
+execute "$cmd" > /dev/null
+curl -so $config_tgt ftp://user:$user@$admin_host/code/bkups/current.gz
+

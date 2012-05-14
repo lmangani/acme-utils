@@ -1,0 +1,52 @@
+#!/bin/bash
+
+source ../functions.sh
+
+set -ue
+
+
+help() {
+    echo "USAGE: $base id"
+}
+
+trap help EXIT
+id=$1
+trap - EXIT
+
+create_tmp
+
+
+cmd=$(cat <<EOF
+expect {
+	"$cfg_prompt" { send "delete realm-specifics $id-CORE\r" }
+	default abort
+}
+expect {
+	-ex {Delete the realm? [y/n]?:} { send "y\n"}
+}
+expect {
+	"$cfg_prompt" { send "delete realm-specifics $id-ACCESS\r" }
+	default abort
+}
+expect {
+	-ex {Delete the realm? [y/n]?:} { send "y\n" }
+}
+$(cfg_cmd "$cfg_prompt" "session-router session-constraints")
+$(cfg_cmd "(session-constraints)#" "no")
+expect {
+-ex {<name>:} { send "$id-CORE\r"; exp_continue }
+-ex {selection:} { send "1\r"; exp_continue }
+}
+$(cfg_cmd "(session-constraints)#" "no")
+expect {
+-ex {<name>:} { send "$id-ACCESS\r"; exp_continue }
+-ex {selection:} { send "1\r"; exp_continue }
+}
+$(cfg_cmd "(session-constraints)#" "exit")
+$(cfg_cmd "(session-router)#" "exit")
+$(cfg_cmd "(configure)#" "exit")
+$(cfg_cmd "#" "save-config")
+EOF)
+
+execute "$(configure "$cmd")"
+

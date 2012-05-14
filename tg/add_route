@@ -1,0 +1,44 @@
+#!/bin/bash
+
+source ../functions.sh
+
+set -ue
+
+
+help() {
+    echo "USAGE: $base id type instance remote_ip remote_port"
+}
+
+trap help EXIT
+id=$1
+group=$2
+trap - EXIT
+
+create_tmp
+
+create_local_policy() {
+src_realm=$1
+dst_realm=$2
+next_hop=$3
+cat <<EOF
+$(cfg_cmd "$cfg_prompt" "session-router local-policy")
+$(cfg_cmd "(local-policy)#" "from-address *")
+$(cfg_cmd "(local-policy)#" "to-address *")
+$(cfg_cmd "(local-policy)#" "source-realm $src_realm")
+$(cfg_cmd "(local-policy)#" "policy-attributes")
+$(cfg_cmd "(local-policy-attributes)#" "next-hop $next_hop")
+$(cfg_cmd "(local-policy-attributes)#" "realm $dst_realm")
+$(cfg_cmd "(local-policy-attributes)#" "done")
+$(cfg_cmd "(local-policy-attributes)#" "exit")
+$(cfg_cmd "(local-policy)#" "done")
+$(cfg_cmd "(local-policy)#" "exit")
+$(cfg_cmd "(session-router)#" "exit")
+EOF
+}
+
+cmd="
+$(create_local_policy $id-CORE $id-ACCESS SAG:$id-DEF)
+$(create_local_policy $id-ACCESS $id-CORE 1.1.1.68)
+"
+
+execute "$(configure "$cmd")"

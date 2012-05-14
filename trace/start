@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -u
+
+IFS="/" read -ra line <<< "$REQUEST_URI"
+
+
+netif=${line[5]}
+ipaddr=${line[6]}
+status="/export/provisioning/acme/trace/data/status"
+info="/export/provisioning/acme/trace/data/info"
+
+echo "Content-type: application/json"
+echo ""
+
+
+a=( $(cat $info) )
+/export/provisioning/acme/trace/start.sh $netif $ipaddr
+if [ $? -gt 0 ] ; then
+    echo "{ \"status\" : \"ERROR(${a[0]}/${a[1]}): $(cat $status)\", \"netif\" : \"${a[0]}\", \"sipif\" : \"${a[1]}\" }"
+else
+    echo "{ \"status\" : \"$(cat $status)\", \"netif\" : \"${a[0]}\", \"sipif\" : \"${a[1]}\" }"
+fi

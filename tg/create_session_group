@@ -1,0 +1,35 @@
+#!/bin/bash
+
+source ../functions.sh
+
+set -ue
+
+
+help() {
+    echo "USAGE: $base id instance remote_ip remote_port"
+}
+
+trap help EXIT
+id=$1
+instance=$2
+strategy=$3
+trap - EXIT
+
+create_tmp
+
+create_peer() {
+cat <<EOF
+$(cfg_cmd "$cfg_prompt" "session-router session-group")
+$(cfg_cmd "(session-agent-group)#" "group-name $id-$instance")
+$(cfg_cmd "(session-agent-group)#" "strategy $strategy")
+$(cfg_cmd "(session-agent-group)#" "sag-recursion enabled")
+$(cfg_cmd "(session-agent-group)#" "stop-sag-recurse 401,407")
+$(cfg_cmd "(session-agent-group)#" "done")
+$(cfg_cmd "(session-agent-group)#" "exit")
+$(cfg_cmd "(session-router)#" "exit")
+EOF
+}
+
+cmd="$(create_peer)"
+
+execute "$(configure "$cmd")"

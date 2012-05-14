@@ -1,0 +1,95 @@
+#!/bin/bash
+
+source ../functions.sh
+
+set -ue
+
+
+help() {
+    echo "USAGE: $base id access_ip"
+}
+
+trap help EXIT
+id=$1
+access_ip=$2
+access_vlan=$3
+core_ip=$4
+trap - EXIT
+
+
+id_core="$id-core"
+id_access="$id-access"
+
+create_tmp
+
+create_realm() {
+    id=$1
+    type=$2
+    vlan=$3
+cat <<EOF
+$(cfg_cmd "$cfg_prompt" "media-manager realm-config")
+$(cfg_cmd "(realm-config)#" "identifier $id-$type")
+$(cfg_cmd "(realm-config)#" "network-interfaces $type:$vlan")
+EOF
+if [ $# -eq 4 ] ; then
+cat <<EOF
+$(cfg_cmd "(realm-config)#" "out-manipulationid $4")
+EOF
+fi
+cat <<EOF
+$(cfg_cmd "(realm-config)#" "access-control-trust-level high")
+$(cfg_cmd "(realm-config)#" "parent-realm $type")
+$(cfg_cmd "(realm-config)#" "done")
+$(cfg_cmd "(realm-config)#" "exit")
+$(cfg_cmd "(media-manager)#" "exit")
+EOF
+}
+
+create_session_constraint() {
+    id=$1
+    type=$2
+cat <<EOF
+$(cfg_cmd "$cfg_prompt" "session-router session-constraints")
+$(cfg_cmd "(session-constraints)#" "name $id-$type")
+$(cfg_cmd "(session-constraints)#" "done")
+$(cfg_cmd "(session-constraints)#" "exit")
+$(cfg_cmd "(session-router)#" "exit")
+EOF
+}
+
+
+create_interface() {
+    id=$1
+    type=$2
+    address=$3
+    port=$4
+    allow_anonymous="all"
+    [ $type = "ACCESS" ] && allow_anonymous="realm-prefix"
+cat <<EOF
+$(cfg_cmd "$cfg_prompt" "session-router sip-interface")
+$(cfg_cmd "(sip-interface)#" "realm-id $id-$type")
+$(cfg_cmd "(sip-interface)#" "constraint-name $id-$type")
+$(cfg_cmd "(sip-interface)#" "trust-mode all")
+$(cfg_cmd "(sip-interface)#" "sip-ports")
+$(cfg_cmd "(sip-port)#" "address $address")
+$(cfg_cmd "(sip-port)#" "port $port")
+$(cfg_cmd "(sip-port)#" "allow-anonymous $allow_anonymous")
+$(cfg_cmd "(sip-port)#" "done")
+$(cfg_cmd "(sip-port)#" "exit")
+$(cfg_cmd "(sip-interface)#" "done")
+$(cfg_cmd "(sip-interface)#" "exit")
+$(cfg_cmd "(session-router)#" "exit")
+EOF
+}
+
+cmd="
+$(create_realm $id ACCESS $access_vlan NAT_IP_2)
+$(create_realm $id CORE $core_vlan)
+$(create_session_constraint $id ACCESS)
+$(create_session_constraint $id CORE)
+$(create_interface $id ACCESS $access_ip $access_port)
+$(create_interface $id CORE $core_ip $core_port)
+"
+
+execute "$(configure "$cmd")"
+

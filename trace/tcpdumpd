@@ -1,0 +1,33 @@
+#!/bin/bash
+
+pid="-1"
+
+start() {
+    echo "start"
+    if [ $pid -lt 0 ] ; then
+	echo "starting"
+	/usr/sbin/tcpdump -i eth0.17 -q -s0 -U -w data/pcap 'ip proto 4' 2> /dev/null &
+	pid=$!
+	echo $pid
+    fi
+}
+
+stop() {
+    echo "stoppping $pid"
+    if [ $pid -gt 0 ] ; then
+	kill $pid
+	pid="-1"
+    fi
+}
+
+
+while [ 1 ] ; do
+    op=$(cat data/fifo)
+    case $op in
+	"start")
+	    start;;
+	"stop")
+	    stop;;
+    esac
+done
+

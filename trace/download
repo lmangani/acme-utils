@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -ue
+
+IFS="/" read -ra line <<< "$REQUEST_URI"
+
+date=$(date +%FT%T)
+
+#echo "Content-type: text/plain"
+echo "Content-type: application/cap"
+echo "Content-Disposition: attachment;filename=$date.pcap"
+echo ""
+
+cat data/pcap
+
+

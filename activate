@@ -1,0 +1,8 @@
+#!/bin/bash
+
+source /export/provisioning/acme/functions.sh
+
+set -ue
+
+create_tmp
+activate

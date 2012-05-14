@@ -1,0 +1,74 @@
+#!/bin/bash
+
+source ../functions.sh
+
+set -ue
+
+
+help() {
+    echo "USAGE: $base id realm group remote_ip remote_port local_ip"
+}
+
+trap help EXIT
+id=$1
+realm=$2
+group=$3
+remote_ip=$4
+remote_port=$5
+local_ip=$6
+trap - EXIT
+
+create_tmp
+
+create_sesion_agent() {
+cat <<EOF
+$(cfg_cmd "$cfg_prompt" "session-router session-agent")
+$(cfg_cmd "(session-agent)#" "hostname $id")
+$(cfg_cmd "(session-agent)#" "ip-address $remote_ip")
+$(cfg_cmd "(session-agent)#" "port $remote_port")
+$(cfg_cmd "(session-agent)#" "realm-id $realm")
+$(cfg_cmd "(session-agent)#" "trust-me enabled")
+$(cfg_cmd "(session-agent)#" "done")
+$(cfg_cmd "(session-agent)#" "exit")
+$(cfg_cmd "(session-router)#" "exit")
+EOF
+}
+
+add_agent_to_group() {
+cat <<EOF
+$(cfg_cmd "$cfg_prompt" "session-router session-group")
+$(cfg_cmd "(session-agent-group)#" "sel")
+expect {
+-ex {<group-name>:} { send "$group\r"; exp_continue }
+-ex {selection:} { send "1\r" }
+default abort
+}
+$(cfg_cmd "(session-agent-group)#" "dest +$id")
+$(cfg_cmd "(session-agent-group)#" "done")
+$(cfg_cmd "(session-agent-group)#" "exit")
+$(cfg_cmd "(session-router)#" "exit")
+EOF
+}
+
+create_access_control() {
+cat <<EOF
+$(cfg_cmd "$cfg_prompt" "session-router access-control")
+$(cfg_cmd "(access-control)#" "realm $realm")
+$(cfg_cmd "(access-control)#" "source-address $remote_ip")
+$(cfg_cmd "(access-control)#" "destination-address $local_ip")
+$(cfg_cmd "(access-control)#" "application-protocol SIP")
+$(cfg_cmd "(access-control)#" "access permit")
+$(cfg_cmd "(access-control)#" "trust-level high")
+$(cfg_cmd "(access-control)#" "done")
+$(cfg_cmd "(access-control)#" "exit")
+$(cfg_cmd "(session-router)#" "exit")
+EOF
+}
+
+cmd="
+$(create_sesion_agent)
+$(add_agent_to_group)
+$(create_access_control)
+"
+
+execute "$(configure "$cmd")"

@@ -1,0 +1,38 @@
+#!/bin/bash
+
+source ../functions.sh
+
+set -ue
+
+
+help() {
+    echo "USAGE: $base id type instance remote_ip remote_port"
+}
+
+trap help EXIT
+id=$1
+type=$2
+local_ip=$3
+remote_ip=$4
+trap - EXIT
+
+create_tmp
+
+create_access_control() {
+cat <<EOF
+$(cfg_cmd "$cfg_prompt" "session-router access-control")
+$(cfg_cmd "(access-control)#" "realm $id-$type")
+$(cfg_cmd "(access-control)#" "source-address $remote_ip")
+$(cfg_cmd "(access-control)#" "destination-address $local_ip")
+$(cfg_cmd "(access-control)#" "application-protocol SIP")
+$(cfg_cmd "(access-control)#" "access permit")
+$(cfg_cmd "(access-control)#" "trust-level high")
+$(cfg_cmd "(access-control)#" "done")
+$(cfg_cmd "(access-control)#" "exit")
+$(cfg_cmd "(session-router)#" "exit")
+EOF
+}
+
+cmd="$(create_access_control)"
+execute "$(configure "$cmd")"
+

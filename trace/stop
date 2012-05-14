@@ -1,0 +1,31 @@
+#!/bin/bash
+
+set -u
+
+IFS="/" read -ra line <<< "$REQUEST_URI"
+
+
+netif=${line[5]}
+ipaddr=${line[6]}
+
+echo "Content-type: application/json"
+echo ""
+
+/export/provisioning/acme/trace/stop.sh $netif $ipaddr
+if [ $? -gt 0 ] ; then
+    echo '{ "status" : "ERROR" }'
+else
+    echo '{ "status" : "OK" }'
+fi
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,46 @@
+#!/bin/bash
+
+source ../functions.sh
+
+set -ue
+
+
+help() {
+    echo "USAGE: $base id max_inbound_sessions max_outbound_sessions max_inbound_rate max_outbound_rate"
+}
+
+trap help EXIT
+id=$1
+max_inbound_sessions=$2
+max_outbound_sessions=$3
+max_inbound_rate=$4
+max_outbound_rate=$5
+trap - EXIT
+
+
+create_tmp
+
+change_limits() {
+cat <<EOF
+$(cfg_cmd "$cfg_prompt" "session-router session-constraints")
+$(cfg_cmd "(session-constraints)#" "sel")
+expect {
+-ex {<name>:} { send "$id-ACCESS\r"; exp_continue }
+-ex {selection:} { send "1\r" }
+default abort
+}
+$(cfg_cmd "(session-constraints)#" "max-inbound-sessions $max_inbound_sessions")
+$(cfg_cmd "(session-constraints)#" "max-outbound-sessions $max_outbound_sessions")
+$(cfg_cmd "(session-constraints)#" "max-inbound-burst-rate $max_inbound_rate")
+$(cfg_cmd "(session-constraints)#" "max-outbound-burst-rate $max_outbound_rate")
+$(cfg_cmd "(session-constraints)#" "done")
+$(cfg_cmd "(session-constraints)#" "exit")
+$(cfg_cmd "(session-router)#" "exit")
+EOF
+}
+
+cmd="$(change_limits)"
+
+
+execute "$(configure "$cmd")"
+
